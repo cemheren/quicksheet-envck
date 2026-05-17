@@ -1,8 +1,7 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 // QuickSheet Environment Variable Inspector extension
 // Protocol: JSON-lines stdin/stdout
@@ -12,15 +11,12 @@ namespace QuickSheetEnvCk;
 
 class Program
 {
-    // Patterns that suggest a value should be masked
     static readonly string[] SensitivePatterns =
     [
         "key", "secret", "token", "password", "passwd", "pwd",
         "auth", "credential", "api", "access", "private", "cert",
         "oauth", "bearer", "signature", "hash", "salt"
     ];
-
-    static string? _anchor;
 
     static void Main()
     {
@@ -46,8 +42,7 @@ class Program
                         break;
 
                     case "activate":
-                        _anchor = root.TryGetProperty("anchor", out var a) ? a.GetString() : null;
-                        var id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() : "0";
+                        var id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() ?? "" : "";
                         var cells = BuildCells(root);
                         Console.WriteLine(JsonSerializer.Serialize(new
                         {
@@ -67,7 +62,6 @@ class Program
 
     static List<object> BuildCells(JsonElement root)
     {
-        // Get the params/cells value
         string query = "";
         if (root.TryGetProperty("params", out var pEl) && pEl.ValueKind == JsonValueKind.Array)
         {
@@ -76,22 +70,7 @@ class Program
                 parts.Add(el.GetString() ?? "");
             query = string.Join(" ", parts).Trim();
         }
-        else if (root.TryGetProperty("cells", out var cEl) && cEl.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var el in cEl.EnumerateArray())
-            {
-                if (el.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var inner in el.EnumerateArray())
-                        query += (inner.GetString() ?? "") + " ";
-                }
-                else
-                {
-                    query += (el.GetString() ?? "") + " ";
-                }
-            }
-            query = query.Trim();
-        }
+
         // Strip leading "env:" prefix if echoed back
         if (query.StartsWith("env:", StringComparison.OrdinalIgnoreCase))
             query = query[4..].Trim();
@@ -100,7 +79,6 @@ class Program
 
         if (string.IsNullOrWhiteSpace(query) || query.Equals("list", StringComparison.OrdinalIgnoreCase))
         {
-            // Show all vars sorted, masked if sensitive
             results = GetAllVars().Take(20).ToList();
         }
         else if (query.StartsWith("filter:", StringComparison.OrdinalIgnoreCase))
@@ -114,7 +92,6 @@ class Program
         else if (query.Equals("path", StringComparison.OrdinalIgnoreCase) ||
                  query.Equals("PATH", StringComparison.Ordinal))
         {
-            // Special: split PATH into individual entries
             var pathVal = Environment.GetEnvironmentVariable("PATH") ?? "";
             var sep = OperatingSystem.IsWindows() ? ';' : ':';
             var entries = pathVal.Split(sep, StringSplitOptions.RemoveEmptyEntries);
@@ -126,11 +103,9 @@ class Program
         }
         else
         {
-            // Single variable lookup
             var val = Environment.GetEnvironmentVariable(query);
             if (val == null)
             {
-                // Case-insensitive search
                 var match = Environment.GetEnvironmentVariables()
                     .Cast<System.Collections.DictionaryEntry>()
                     .FirstOrDefault(e => string.Equals(e.Key?.ToString(), query, StringComparison.OrdinalIgnoreCase));
@@ -140,14 +115,13 @@ class Program
             }
             if (val == null)
             {
-                return [MakeCell(0, 0, $"⚠️  {query}: not set")];
+                return [MakeCell(0, 0, $"\u26a0\ufe0f  {query}: not set")];
             }
             bool isSensitive = IsSensitive(query);
             if (isSensitive)
             {
                 return [MakeCell(0, 0, $"{query} = {Mask(val)}")];
             }
-            // Multi-line values or long values split across rows
             var lines = val.Split('\n');
             if (lines.Length > 1)
             {
@@ -170,7 +144,7 @@ class Program
                 cells.Add(MakeCell(i, 0, display));
             }
             if (cells.Count == 0)
-                cells.Add(MakeCell(0, 0, "⚠️  No matching variables"));
+                cells.Add(MakeCell(0, 0, "\u26a0\ufe0f  No matching variables"));
             return cells;
         }
     }
@@ -198,7 +172,7 @@ class Program
     }
 
     static string Truncate(string value, int max) =>
-        value.Length > max ? value[..max] + "…" : value;
+        value.Length > max ? value[..max] + "\u2026" : value;
 
     static object MakeCell(int row, int col, string value) =>
         new { r = row, c = col, v = value };
