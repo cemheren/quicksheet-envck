@@ -1,0 +1,12 @@
+{
+  "name": "quicksheet-envck",
+  "version": "1.0.0",
+  "description": "Environment variable inspector — view, filter, and safely display env vars on your desktop",
+  "author": "cemheren",
+  "prefix": "env:",
+  "entry": "QuickSheetEnvCk/QuickSheetEnvCk.csproj",
+  "runtime": "dotnet",
+  "width": 1,
+  "height": 20,
+  "params": ["variable name, filter:PATTERN, list, or PATH"]
+}
