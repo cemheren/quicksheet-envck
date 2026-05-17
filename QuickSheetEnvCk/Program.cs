@@ -20,10 +20,19 @@ class Program
         "oauth", "bearer", "signature", "hash", "salt"
     ];
 
-    static string? _anchor;
-
     static void Main()
     {
+        // Protocol: extension emits register on startup. Host listens; it does NOT
+        // send init. Prefix has no trailing colon — host adds it.
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            type = "register",
+            prefix = "env",
+            width = 1,
+            height = 20
+        }));
+        Console.Out.Flush();
+
         string? line;
         while ((line = Console.ReadLine()) != null)
         {
@@ -33,33 +42,17 @@ class Program
                 var root = doc.RootElement;
                 var msgType = root.GetProperty("type").GetString();
 
-                switch (msgType)
+                if (msgType != "activate") continue;
+
+                var id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() : "0";
+                var cells = BuildCells(root);
+                Console.WriteLine(JsonSerializer.Serialize(new
                 {
-                    case "init":
-                        Console.WriteLine(JsonSerializer.Serialize(new
-                        {
-                            type = "register",
-                            prefix = "env:",
-                            width = 1,
-                            height = 20
-                        }));
-                        break;
-
-                    case "activate":
-                        _anchor = root.TryGetProperty("anchor", out var a) ? a.GetString() : null;
-                        var id = root.TryGetProperty("id", out var idProp) ? idProp.GetString() : "0";
-                        var cells = BuildCells(root);
-                        Console.WriteLine(JsonSerializer.Serialize(new
-                        {
-                            type = "write",
-                            id,
-                            cells
-                        }));
-                        break;
-
-                    case "deactivate":
-                        break;
-                }
+                    type = "write",
+                    id,
+                    cells
+                }));
+                Console.Out.Flush();
             }
             catch { /* ignore malformed messages */ }
         }
