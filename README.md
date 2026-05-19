@@ -7,7 +7,7 @@ Inspect, filter, and safely view your environment variables directly on your des
 ## Install
 
 ```
-ext: github:cemheren/quicksheet-envck
+ext: github:Deskworks/quicksheet-envck
 ```
 
 ## Usage
